@@ -1,0 +1,71 @@
+version: '3.7'
+
+services:
+  # 1. Le Honeypot SSH
+  ssh-honeypot:
+    build: ./honeypot
+    container_name: ssh-honeypot
+    restart: unless-stopped
+    ports:
+      # Mappe le port 2223 de votre PC au port 22 du conteneur
+      - "2223:22"
+    volumes:
+      # Le dossier 'logs' local est mappé dans le conteneur
+      - ./logs:/var/log/honeypot
+    security_opt:
+      # Applique le profil AppArmor (après chargement sur l'hôte)
+      - "apparmor:docker-honeypot-profile"
+      # Applique le filtre Seccomp pour bloquer 'execve' 
+      # - "seccomp=./honeypot/honeypot-seccomp.json"
+      - "no-new-privileges"
+    cap_drop:
+      - ALL
+
+  # 2. Elasticsearch (Version 6.8.13 - Légère)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.8.13
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      # --- CONFIGURATION FAIBLE RAM ---
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Limite la RAM à 512Mo
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  # 3. Logstash (Version 6.8.13)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:6.8.13
+    container_name: logstash
+    restart: unless-stopped
+    volumes:
+      # Pipeline de configuration pour parser les logs 
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline
+      # Lit les logs en 'read-only' depuis le volume partagé
+      - ./logs:/var/log/honeypot:ro
+    environment:
+      # --- CONFIGURATION FAIBLE RAM ---
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m" # Limite la RAM à 256Mo
+    depends_on:
+      - elasticsearch
+
+  # 4. Kibana (Version 6.8.13)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.8.13
+    container_name: kibana
+    restart: unless-stopped
+    ports:
+      # Accès à l'interface web via http://VOTRE_IP:5601
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+volumes:
+  esdata:
+    driver: local

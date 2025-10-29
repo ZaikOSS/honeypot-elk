@@ -1,0 +1,32 @@
+#include <tunables/global>
+
+profile docker-honeypot-profile flags=(attach_disconnected) {
+  # Inclut les abstractions de base
+  #include <abstractions/base>
+  #include <abstractions/python>
+
+  # Autorise les capacités réseau nécessaires
+  network inet tcp,
+
+  # --- Règles spécifiques du projet ---
+
+  # Autorise l'écriture dans le fichier de log
+  /var/log/honeypot/ssh-honeypot.log w,
+
+  # Autorise la lecture/écriture de la clé du serveur
+  /app/server_key.pem rw,
+  
+  # Autorise la lecture des fichiers de l'application
+  /app/honeypot.py r,
+
+  # --- Interdictions spécifiques du projet ---
+  
+  # [cite_start]Interdit l'accès à /etc et /proc [cite: 9]
+  deny /etc/** r,
+  deny /proc/** r,
+
+  # Interdit l'exécution
+  deny /bin/** x,
+  deny /usr/bin/** x,
+
+}
