@@ -1,0 +1,38 @@
+#include <tunables/global>
+
+# C'est le nom de profil que docker-compose.yml recherche
+profile docker-honeypot-platform-profile flags=(attach_disconnected, complain) {
+
+    # Inclut les abstractions de base
+    #include <abstractions/base>
+    #include <abstractions/python>
+
+    # Autorise les capacités réseau nécessaires pour les 3 services
+    network inet tcp,
+
+    # --- Règles spécifiques du projet ---
+    # Autorise l'écriture dans tous les fichiers de log
+    /var/log/honeypot/ssh-honeypot.log w,
+    /var/log/honeypot/http-honeypot.log w,
+    /var/log/honeypot/ftp-honeypot.log w,
+
+    # Autorise la lecture/écriture de la clé du serveur SSH
+    /app/server_key.pem rw,
+
+    # Autorise la lecture des fichiers de l'application
+    /app/main.py r,
+    /app/shared_logger.py r,
+    /app/ssh_honeypot.py r,
+    /app/http_honeypot.py r,
+    /app/ftp_honeypot.py r,
+    /app/honeypot-seccomp.json r,
+
+    # --- Interdictions spécifiques du projet ---
+    # Interdit l'accès à /etc et /proc
+    deny /etc/** r,
+    deny /proc/** r,
+
+    # Interdit l'exécution (Seccomp est la défense principale pour execve)
+    deny /bin/** x,
+    deny /usr/bin/** x,
+}

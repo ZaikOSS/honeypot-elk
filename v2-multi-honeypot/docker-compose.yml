@@ -1,0 +1,70 @@
+version: '3.7'
+
+services:
+  # 1. La plateforme Honeypot (SSH, HTTP, FTP)
+  honeypot-platform:
+    build: ./honeypot
+    container_name: honeypot-platform
+    restart: unless-stopped
+    ports:
+      # Mappe les ports > 1024 de l'hôte vers les ports < 1024 du conteneur
+      - "2223:22"   # SSH
+      - "8080:80"   # HTTP
+      - "2121:21"   # FTP
+    volumes:
+      # Le dossier 'logs' local est mappé dans le conteneur
+      - ./logs:/var/log/honeypot
+    security_opt:
+      # Applique le nouveau profil AppArmor
+      - "apparmor:docker-honeypot-platform-profile"
+      # Applique le filtre Seccomp (le même fichier JSON fonctionne)
+      #- "seccomp=./honeypot/honeypot-seccomp.json"
+      - "no-new-privileges"
+    cap_drop:
+      - ALL
+
+  # 2. Elasticsearch (Identique)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.8.13
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  # 3. Logstash (Identique, mais lit plus de logs)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:6.8.13
+    container_name: logstash
+    restart: unless-stopped
+    volumes:
+      # Pipeline de configuration mis à jour
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline
+      # Lit les logs en 'read-only' depuis le volume partagé
+      - ./logs:/var/log/honeypot:ro
+    environment:
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+    depends_on:
+      - elasticsearch
+
+  # 4. Kibana (Identique)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.8.13
+    container_name: kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+volumes:
+  esdata:
+    driver: local
