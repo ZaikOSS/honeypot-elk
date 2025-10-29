@@ -149,7 +149,3 @@ Ce projet est sous licence **MIT**. Voir le fichier [LICENSE](LICENSE) pour plus
 
 **Auteur :** Zakaria Ouadifi (Zaikos)  
 **Projet :** Honeypot-ELK — Plateforme de détection et d’analyse multi-protocole.
-
----
-
-Souhaites-tu que je t’aide à rédiger le fichier [LICENSE](LICENSE), un exemple de dashboard Kibana, ou un guide pour l’analyse des logs ?
